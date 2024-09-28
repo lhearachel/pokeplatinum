@@ -171,7 +171,7 @@ u8 TrainerClass_Gender(int trclass)
     return sTrainerClassGender[trclass];
 }
 
-#define DEBUG_LOG
+/* #define DEBUG_LOG */
 
 #ifdef DEBUG_LOG
 static void SWIFC(char *s)

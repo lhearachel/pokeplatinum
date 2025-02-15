@@ -13,11 +13,22 @@ icon_nbfp = custom_target('icon.nbfp',
     command: [nitrogfx_exe, '@INPUT@', '@OUTPUT@']
 )
 
+# banner_bnr = custom_target('banner.bnr',
+#     input: banner_bsf,
+#     output: 'banner.bnr',
+#     depends: [icon_nbfc, icon_nbfp],
+#     command: [makebanner_exe, '@INPUT@', '@OUTPUT@']
+# )
 banner_bnr = custom_target('banner.bnr',
-    input: banner_bsf,
     output: 'banner.bnr',
-    depends: [icon_nbfc, icon_nbfp],
-    command: [makebanner_exe, '@INPUT@', '@OUTPUT@']
+    command: [
+        makebanner_exe,
+        '--icon-bitmap', icon_nbfc,
+        '--icon-palette', icon_nbfp,
+        '--title', 'Pokémon Platinum',
+        '--developer', 'Nintendo',
+        '@OUTPUT@',
+    ],
 )
 
 # Collect inputs for main.lcf

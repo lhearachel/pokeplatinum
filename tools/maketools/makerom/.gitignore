@@ -1,0 +1,6 @@
+makebanner
+makerom
+*.o
+*.d
+*.exe
+compile_commands.json

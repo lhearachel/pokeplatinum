@@ -220,6 +220,12 @@ int main(int argc, char **argv)
     ParseSpec(spec);
     InitHeader();
 
+    for (size_t i = 0; i < gRomSpec->numFiles; i++) {
+        free(gRomSpec->files[i].rootLocal.data);
+        free(gRomSpec->files[i].rootRom.data);
+        free(gRomSpec->files[i].path.data);
+    }
+
     free(spec.data);
     free(gRomSpec);
     exit(EXIT_SUCCESS);

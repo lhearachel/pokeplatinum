@@ -27,6 +27,17 @@ typedef struct {
 bool String_Equals(String a, String b);
 bool String_StartsWith(String s, String w);
 StringPair String_Cut(String s, char delim);
+StringPair String_CutBack(String s, char delim);
+
+// Join the strings A and B, separating them with the specified delimiter.
+// This function performs a dynamic allocation, and the calling client is
+// responsible for freeing it.
+String String_Join(String a, String b, char delim);
+
+// Copy the string S. This function performs a dynamic allocation, and the
+// calling client is responsible for freeing it.
+String String_Copy(String s);
+
 void String_Advance(String *s, size_t n);
 
 #endif // CSTRING_H

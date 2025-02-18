@@ -1,5 +1,7 @@
 #include "romspec.h"
 
+#include <stdlib.h>
+
 #include "cstring.h"
 #include "makerom.h"
 
@@ -245,6 +247,31 @@ static u8 ParseRomSize(String *s)
     return -1;
 }
 
+static File ParseFilePath(String *s)
+{
+    // parent directory path + basename
+    StringPair entryPair = String_CutBack(*s, '/');
+    String romParent;
+    String localParent;
+
+    // If the file-path has a parent directory, concatenate it with the current
+    // ROM root and local root to produce a canonical parent for either case.
+    if (entryPair.head.len > 0) {
+        romParent = String_Join(sRomRoot, entryPair.head, '/');
+        localParent = String_Join(sLocalRoot, entryPair.head, '/');
+    } else {
+        romParent = String_Copy(sRomRoot);
+        localParent = String_Copy(sLocalRoot);
+    }
+
+    String basename = String_Copy(entryPair.tail);
+    return (File) {
+        .rootLocal = localParent,
+        .rootRom = romParent,
+        .path = basename,
+    };
+}
+
 static void ParseArm9Section(String *spec)
 {
     DebugPrint("Entered Arm9 section...");
@@ -434,11 +461,8 @@ static void ParseRomSpecSection(String *spec)
             target = &sLocalRoot;
             targetKey = &sKeyLocalRoot;
         } else if (TakePropertyKey(spec, sKeyFile)) {
-            gRomSpec->files[gRomSpec->numFiles] = (File) {
-                .rootRom = sRomRoot,
-                .rootLocal = sLocalRoot,
-                .path = TakeStringValue(spec),
-            };
+            String path = TakeStringValue(spec);
+            gRomSpec->files[gRomSpec->numFiles] = ParseFilePath(&path);
             target = &gRomSpec->files[gRomSpec->numFiles].path;
             targetKey = &sKeyFile;
             gRomSpec->numFiles++;

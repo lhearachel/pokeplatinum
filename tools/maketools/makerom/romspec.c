@@ -182,6 +182,13 @@ static String TakeStringValue(String *s)
     return value;
 }
 
+static String CloneStringValue(String *s)
+{
+    String value = TakeStringValue(s);
+    char *buf = new (&gArena, char, value.len + 1);
+    return String_Clone(value, buf);
+}
+
 static int ParseNumber(String *s)
 {
     int pow = 1;
@@ -257,14 +264,17 @@ static File ParseFilePath(String *s)
     // If the file-path has a parent directory, concatenate it with the current
     // ROM root and local root to produce a canonical parent for either case.
     if (entryPair.head.len > 0) {
-        romParent = String_Join(sRomRoot, entryPair.head, '/');
-        localParent = String_Join(sLocalRoot, entryPair.head, '/');
+        romParent = String_JoinA(sRomRoot, entryPair.head, '/', &gArena);
+        localParent = String_JoinA(sLocalRoot, entryPair.head, '/', &gArena);
     } else {
-        romParent = String_Copy(sRomRoot);
-        localParent = String_Copy(sLocalRoot);
+        char *romParentBuf = new (&gArena, char, sRomRoot.len + 1);
+        char *localParentBuf = new (&gArena, char, sLocalRoot.len + 1);
+        romParent = String_Clone(sRomRoot, romParentBuf);
+        localParent = String_Clone(sLocalRoot, localParentBuf);
     }
 
-    String basename = String_Copy(entryPair.tail);
+    char *basenameBuf = new (&gArena, char, entryPair.tail.len + 1);
+    String basename = String_Clone(entryPair.tail, basenameBuf);
     return (File) {
         .rootLocal = localParent,
         .rootRom = romParent,
@@ -284,19 +294,19 @@ static void ParseArm9Section(String *spec)
         String *target = NULL;
         String *targetKey = NULL;
         if (TakePropertyKey(spec, sKeyStatic)) {
-            gRomSpec->binary9.pathStatic = TakeStringValue(spec);
+            gRomSpec->binary9.pathStatic = CloneStringValue(spec);
             target = &gRomSpec->binary9.pathStatic;
             targetKey = &sKeyStatic;
         } else if (TakePropertyKey(spec, sKeyOverlayDefs)) {
-            gRomSpec->binary9.pathOverlayDefs = TakeStringValue(spec);
+            gRomSpec->binary9.pathOverlayDefs = CloneStringValue(spec);
             target = &gRomSpec->binary9.pathOverlayDefs;
             targetKey = &sKeyOverlayDefs;
         } else if (TakePropertyKey(spec, sKeyOverlayTable)) {
-            gRomSpec->binary9.pathOverlayTable = TakeStringValue(spec);
+            gRomSpec->binary9.pathOverlayTable = CloneStringValue(spec);
             target = &gRomSpec->binary9.pathOverlayTable;
             targetKey = &sKeyOverlayTable;
         } else if (TakePropertyKey(spec, sKeyElf) || TakePropertyKey(spec, sKeyNef)) {
-            gRomSpec->binary9.pathElf = TakeStringValue(spec);
+            gRomSpec->binary9.pathElf = CloneStringValue(spec); // Not important to keep, apparently
             target = &gRomSpec->binary9.pathElf;
             targetKey = &sKeyElf;
         } else {
@@ -327,19 +337,19 @@ static void ParseArm7Section(String *spec)
         String *target = NULL;
         String *targetKey = NULL;
         if (TakePropertyKey(spec, sKeyStatic)) {
-            gRomSpec->binary7.pathStatic = TakeStringValue(spec);
+            gRomSpec->binary7.pathStatic = CloneStringValue(spec);
             target = &gRomSpec->binary7.pathStatic;
             targetKey = &sKeyStatic;
         } else if (TakePropertyKey(spec, sKeyOverlayDefs)) {
-            gRomSpec->binary7.pathOverlayDefs = TakeStringValue(spec);
+            gRomSpec->binary7.pathOverlayDefs = CloneStringValue(spec);
             target = &gRomSpec->binary7.pathOverlayDefs;
             targetKey = &sKeyOverlayDefs;
         } else if (TakePropertyKey(spec, sKeyOverlayTable)) {
-            gRomSpec->binary7.pathOverlayTable = TakeStringValue(spec);
+            gRomSpec->binary7.pathOverlayTable = CloneStringValue(spec);
             target = &gRomSpec->binary7.pathOverlayTable;
             targetKey = &sKeyOverlayTable;
         } else if (TakePropertyKey(spec, sKeyElf) || TakePropertyKey(spec, sKeyNef)) {
-            gRomSpec->binary7.pathElf = TakeStringValue(spec);
+            gRomSpec->binary7.pathElf = CloneStringValue(spec);
             target = &gRomSpec->binary7.pathElf;
             targetKey = &sKeyElf;
         } else {
@@ -370,7 +380,7 @@ static void ParsePropertySection(String *spec)
         String *target = NULL;
         String *targetKey = NULL;
         if (TakePropertyKey(spec, sKeyGameTitle)) {
-            gRomSpec->properties.gameTitle = TakeStringValue(spec);
+            gRomSpec->properties.gameTitle = CloneStringValue(spec);
             if (gRomSpec->properties.gameTitle.len > 12) {
                 DebugPrint("-- Value for “GameTitle” = “%.*s” is longer than 12 characters; truncating...",
                     (int)gRomSpec->properties.gameTitle.len,
@@ -381,7 +391,7 @@ static void ParsePropertySection(String *spec)
             target = &gRomSpec->properties.gameTitle;
             targetKey = &sKeyGameTitle;
         } else if (TakePropertyKey(spec, sKeyGameCode)) {
-            gRomSpec->properties.gameCode = TakeStringValue(spec);
+            gRomSpec->properties.gameCode = CloneStringValue(spec);
             if (gRomSpec->properties.gameCode.len > 4) {
                 DebugPrint("-- Value for “GameCode” = “%.*s” is longer than 4 characters; truncating...",
                     (int)gRomSpec->properties.gameCode.len,
@@ -392,7 +402,7 @@ static void ParsePropertySection(String *spec)
             target = &gRomSpec->properties.gameCode;
             targetKey = &sKeyGameCode;
         } else if (TakePropertyKey(spec, sKeyMakerCode)) {
-            gRomSpec->properties.makerCode = TakeStringValue(spec);
+            gRomSpec->properties.makerCode = CloneStringValue(spec);
             if (gRomSpec->properties.makerCode.len > 2) {
                 DebugPrint("-- Value for “MakerCode” = “%.*s” is longer than 2 characters; truncating...",
                     (int)gRomSpec->properties.makerCode.len,
@@ -447,13 +457,16 @@ static void ParseRomSpecSection(String *spec)
 
         String *target = NULL;
         String *targetKey = NULL;
-        gRomSpec->numFiles = 0;
         if (TakePropertyKey(spec, sKeySegment)) {
             sSegment = TakeStringValue(spec);
             target = &sSegment;
             targetKey = &sKeySegment;
         } else if (TakePropertyKey(spec, sKeyRomRoot)) {
             sRomRoot = TakeStringValue(spec);
+            if (String_Equals(sRomRoot, String("/"))) {
+                sRomRoot = String_Z;
+            }
+
             target = &sRomRoot;
             targetKey = &sKeyRomRoot;
         } else if (TakePropertyKey(spec, sKeyLocalRoot)) {

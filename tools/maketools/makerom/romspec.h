@@ -4,9 +4,6 @@
 #include "cstring.h"
 #include "global.h"
 
-#define MAX_FILES          500
-#define MAX_FILE_PATH_SIZE 512
-
 typedef struct {
     String pathStatic;
     String pathOverlayDefs;
@@ -34,7 +31,7 @@ typedef struct {
     Arm binary9;
     Arm binary7;
     Properties properties;
-    File files[MAX_FILES];
+    File files[ROMSPEC_FILESYS_ENTRIES];
     size_t numFiles;
 } RomSpec;
 

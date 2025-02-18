@@ -1,6 +1,7 @@
 #ifndef MAKEROM_H
 #define MAKEROM_H
 
+#include "arena.h"
 #include "cstring.h"
 #include "global.h"
 #include "romspec.h"
@@ -12,17 +13,11 @@ typedef struct {
     String value;
 } Variable;
 
-typedef struct {
-    void *mem;
-    size_t start;
-    size_t offset;
-    size_t capacity;
-} Memory;
-
 extern Variable gVariables[VARIABLE_COUNT];
 extern bool gVerbose;
 extern String gSpecFileName;
 extern RomSpec *gRomSpec;
+extern Arena gArena;
 
 void Die(char *fmt, ...);
 void DebugPrint(char *fmt, ...);

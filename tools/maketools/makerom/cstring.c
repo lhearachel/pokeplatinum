@@ -54,27 +54,39 @@ StringPair String_CutBack(String s, char delim)
     String head = String_Z;
     String tail = s;
 
-    for (size_t i = tail.len - 1; i >= 0; i--) {
+    for (int i = tail.len - 1; i >= 0; i--) {
         if (tail.data[i] == delim) {
-            head = String(s.data, i - 1);
+            head = String(s.data, i);
             tail = String(s.data + i + 1, s.len - i - 1);
+            break;
         }
     }
 
     return (StringPair) { head, tail };
 }
 
-String String_Join(String a, String b, char delim)
+static String _JoinInternal(String s, String t, char delim, char *join, size_t joinLen)
 {
-    size_t joinLen = a.len + b.len + 1;
-    char *join = malloc(joinLen + 1);
-
-    join[a.len] = delim;
+    join[s.len] = delim;
     join[joinLen] = '\0';
-    memcpy(join, a.data, a.len);
-    memcpy(join + a.len + 1, b.data, b.len);
+    memcpy(join, s.data, s.len);
+    memcpy(join + s.len + 1, t.data, t.len);
 
     return String(join, joinLen);
+}
+
+String String_Join(String s, String t, char delim)
+{
+    size_t joinLen = s.len + t.len + 1;
+    char *join = malloc(joinLen + 1);
+    return _JoinInternal(s, t, delim, join, joinLen);
+}
+
+String String_JoinA(String s, String t, char delim, Arena *a)
+{
+    size_t joinLen = s.len + t.len + 1;
+    char *join = new (a, char, joinLen + 1);
+    return _JoinInternal(s, t, delim, join, joinLen);
 }
 
 String String_Copy(String s)
@@ -84,6 +96,13 @@ String String_Copy(String s)
     copy[s.len] = '\0';
 
     return String(copy, s.len);
+}
+
+String String_Clone(String s, char *buf)
+{
+    memcpy(buf, s.data, s.len);
+    buf[s.len] = '\0';
+    return String(buf, s.len);
 }
 
 void String_Advance(String *s, size_t n)

@@ -265,7 +265,7 @@ maketools_c_commands = [
     {
         "directory": builddir,
         "arguments": [
-            "cc",
+            "gcc",
             "-Wall",
             "-Wextra",
             "-std=c99",

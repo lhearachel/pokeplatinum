@@ -1,10 +1,12 @@
 #include "makerom.h"
 
+#include <setjmp.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "arena.h"
 #include "cstring.h"
 #include "global.h"
 #include "romspec.h"
@@ -16,10 +18,16 @@ Variable gVariables[VARIABLE_COUNT] = { 0 };
 bool gVerbose = false;
 String gSpecFileName = String_Z;
 RomSpec *gRomSpec = NULL;
+Arena gArena = { 0 };
 
-static unsigned char sRomHeader[ROM_HEADER_SIZE] = { 0 };
-static String sBannerPath = String_Z;
-static String sWorkingDirectory = String(".");
+// This contains the actual strings extracted from the romspec file. It is a continuous buffer,
+// with individual strings pointed to from the outside and separated by their null-terminators.
+static char sRomSpecStrings[16000000] = { 0 };
+
+// These are kept as raw strings because their length never matters.
+static char *sHeaderTemplatePath = NULL;
+static char *sBannerPath = NULL;
+static char *sWorkingDirectory = ".";
 
 static void Usage(FILE *stream)
 {
@@ -83,9 +91,6 @@ static void LoadHeaderTemplate(char *path)
         DieUsage("Could not open header template file “%s”", path);
         return;
     }
-
-    fread(sRomHeader, 1, 0x1000, f);
-    fclose(f);
 }
 
 static void ParseArgv(int argc, char **argv)
@@ -124,15 +129,15 @@ static void ParseArgv(int argc, char **argv)
         } else if (opt[1] == 'T' || strncmp(opt + 1, "-template", 9) == 0) {
             argc--;
             argv++;
-            LoadHeaderTemplate(*argv);
+            sHeaderTemplatePath = *argv;
         } else if (opt[1] == 'B' || strncmp(opt + 1, "-banner", 7) == 0) {
             argc--;
             argv++;
-            sBannerPath = String(*argv, strlen(*argv));
+            sBannerPath = *argv;
         } else if (opt[1] == 'C' || strncmp(opt + 1, "-directory", 10) == 0) {
             argc--;
             argv++;
-            sWorkingDirectory = String(*argv, strlen(*argv));
+            sWorkingDirectory = *argv;
         } else {
             DieUsage("Unrecognized option “%s”", opt);
         }
@@ -169,64 +174,73 @@ static String ReadWholeFile(String fname)
     return content;
 }
 
-static void InitHeader(void)
-{
-    Properties *properties = &gRomSpec->properties;
-    memcpy(sRomHeader + 0x00, properties->gameTitle.data, properties->gameTitle.len);
-    memcpy(sRomHeader + 0x0C, properties->gameCode.data, properties->gameCode.len);
-    memcpy(sRomHeader + 0x10, properties->makerCode.data, properties->makerCode.len);
-    // byte 0x12 -> Unit Code (00=NDS, 02=NDS+DSi, 03=DSi)
-    // byte 0x13 -> Encryption seed selection (00..07)
-    sRomHeader[0x14] = properties->romSize; // set to N, actual chip size is 128KB << N (roughly 1 Megabit)
-    // 0x15..0x1B -> reserved
-    // 0x1C -> reserved on NDS (used on DSi)
-    // 0x1D -> NDS region (0x00=global, 0x80=China, 0x40=Kora)
-    sRomHeader[0x1E] = properties->remasterVersion;
-    // 0x1F -> Autostart (bit 2, specifically; skips Press Button after Health and Safety screen)
-    // 0x20..0x5C -> offsets for stuff
-    // 0x60 -> port 0x040001A4 setting for normal commands (usually 0x00586000)
-    // 0x64 -> port 0x040001A4 setting for KEY1 commands (usually 0x001808F8)
-    // 0x68 -> banner offset
-    // 0x6C -> secure area CRC-16 (0x00000020..0x00007FFF)
-    sRomHeader[0x6E] = properties->secureDelay & 0xFF;
-    sRomHeader[0x6F] = (properties->secureDelay >> 8) & 0xFF;
-    // 0x70 -> ARM9 auto load list hook RAM address
-    // 0x74 -> ARM7 auto load list hook RAM address
-    // 0x78 -> Disable Secure Area flag
-    // 0x80 -> Total used ROM size
-    sRomHeader[0x84] = ROM_HEADER_SIZE & 0xFF;
-    sRomHeader[0x85] = (ROM_HEADER_SIZE >> 8) & 0xFF;
-    sRomHeader[0x86] = (ROM_HEADER_SIZE >> 16) & 0xFF;
-    sRomHeader[0x87] = (ROM_HEADER_SIZE >> 24) & 0xFF;
-    // 0x88 -> unknown
-    // 0x8C -> reserved
-    // 0x94 -> NAND end of ROM area
-    // 0x96 -> NAND start of RW area
-    // 0x98 -> reserved
-    // 0xB0 -> reserved
-    // 0xC0 -> Nintendo logo (compressed bitmap)
-    sRomHeader[0x15C] = NINTENDO_LOGO_CHECKSUM & 0xFF;
-    sRomHeader[0x15D] = (NINTENDO_LOGO_CHECKSUM >> 8) & 0xFF;
-    // 0x15E -> header CRC-16 (0x0000..0x015D)
-    // remaining is debug information or reserved areas
-}
+/* static void InitHeader(void) */
+/* { */
+/*     Properties *properties = &gRomSpec->properties; */
+/*     memcpy(sRomHeader + 0x00, properties->gameTitle.data, properties->gameTitle.len); */
+/*     memcpy(sRomHeader + 0x0C, properties->gameCode.data, properties->gameCode.len); */
+/*     memcpy(sRomHeader + 0x10, properties->makerCode.data, properties->makerCode.len); */
+/*     // byte 0x12 -> Unit Code (00=NDS, 02=NDS+DSi, 03=DSi) */
+/*     // byte 0x13 -> Encryption seed selection (00..07) */
+/*     sRomHeader[0x14] = properties->romSize; // set to N, actual chip size is 128KB << N (roughly 1 Megabit) */
+/*     // 0x15..0x1B -> reserved */
+/*     // 0x1C -> reserved on NDS (used on DSi) */
+/*     // 0x1D -> NDS region (0x00=global, 0x80=China, 0x40=Kora) */
+/*     sRomHeader[0x1E] = properties->remasterVersion; */
+/*     // 0x1F -> Autostart (bit 2, specifically; skips Press Button after Health and Safety screen) */
+/*     // 0x20..0x5C -> offsets for stuff */
+/*     // 0x60 -> port 0x040001A4 setting for normal commands (usually 0x00586000) */
+/*     // 0x64 -> port 0x040001A4 setting for KEY1 commands (usually 0x001808F8) */
+/*     // 0x68 -> banner offset */
+/*     // 0x6C -> secure area CRC-16 (0x00000020..0x00007FFF) */
+/*     sRomHeader[0x6E] = properties->secureDelay & 0xFF; */
+/*     sRomHeader[0x6F] = (properties->secureDelay >> 8) & 0xFF; */
+/*     // 0x70 -> ARM9 auto load list hook RAM address */
+/*     // 0x74 -> ARM7 auto load list hook RAM address */
+/*     // 0x78 -> Disable Secure Area flag */
+/*     // 0x80 -> Total used ROM size */
+/*     sRomHeader[0x84] = ROM_HEADER_SIZE & 0xFF; */
+/*     sRomHeader[0x85] = (ROM_HEADER_SIZE >> 8) & 0xFF; */
+/*     sRomHeader[0x86] = (ROM_HEADER_SIZE >> 16) & 0xFF; */
+/*     sRomHeader[0x87] = (ROM_HEADER_SIZE >> 24) & 0xFF; */
+/*     // 0x88 -> unknown */
+/*     // 0x8C -> reserved */
+/*     // 0x94 -> NAND end of ROM area */
+/*     // 0x96 -> NAND start of RW area */
+/*     // 0x98 -> reserved */
+/*     // 0xB0 -> reserved */
+/*     // 0xC0 -> Nintendo logo (compressed bitmap) */
+/*     sRomHeader[0x15C] = NINTENDO_LOGO_CHECKSUM & 0xFF; */
+/*     sRomHeader[0x15D] = (NINTENDO_LOGO_CHECKSUM >> 8) & 0xFF; */
+/*     // 0x15E -> header CRC-16 (0x0000..0x015D) */
+/*     // remaining is debug information or reserved areas */
+/* } */
 
 int main(int argc, char **argv)
 {
     ParseArgv(argc, argv);
 
     String spec = ReadWholeFile(gSpecFileName);
-    gRomSpec = calloc(1, sizeof(RomSpec));
-    ParseSpec(spec);
-    InitHeader();
 
-    for (size_t i = 0; i < gRomSpec->numFiles; i++) {
-        free(gRomSpec->files[i].rootLocal.data);
-        free(gRomSpec->files[i].rootRom.data);
-        free(gRomSpec->files[i].path.data);
+    jmp_buf main;
+    if (setjmp(main)) {
+        Die("gArena signaled OOM");
     }
 
+    gRomSpec = calloc(1, sizeof(RomSpec));
+    gArena = (Arena) {
+        .buf = (u8 *)sRomSpecStrings,
+        .capacity = countof(sRomSpecStrings),
+    };
+    memcpy(gArena.jmp, main, sizeof(jmp_buf));
+
+    ParseSpec(spec);
     free(spec.data);
+    for (size_t i = 0; i < gRomSpec->numFiles; i++) {
+        printf("%s/%s\n", gRomSpec->files[i].rootRom.data, gRomSpec->files[i].path.data);
+    }
+    /* InitHeader(); */
+
     free(gRomSpec);
     exit(EXIT_SUCCESS);
 }

@@ -7,8 +7,8 @@
 
 typedef struct {
     u8 *buf;
-    u32 capacity;
-    u32 head;
+    int capacity;
+    int head;
     jmp_buf jmp;
 } Arena;
 

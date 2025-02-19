@@ -463,8 +463,8 @@ static void ParseRomSpecSection(String *spec)
             targetKey = &sKeySegment;
         } else if (TakePropertyKey(spec, sKeyRomRoot)) {
             sRomRoot = TakeStringValue(spec);
-            if (String_Equals(sRomRoot, String("/"))) {
-                sRomRoot = String_Z;
+            if (sRomRoot.data[sRomRoot.len - 1] == '/') {
+                sRomRoot.len--; // Trim the trailing '/'.
             }
 
             target = &sRomRoot;

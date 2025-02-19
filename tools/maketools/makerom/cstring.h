@@ -47,6 +47,13 @@ String String_Copy(String s);
 // a new String struct.
 String String_Clone(String s, char *buf);
 
+// Advance the string S's data pointer and reduce its length by N.
 void String_Advance(String *s, size_t n);
+
+// Compare the strings S and T to one another lexicographically; returns 0 if
+// the strings are equal, -1 if S < T, and 1 if S > T.
+//
+// This variant ignores differences in casing.
+int String_CompareIgnoreCase(String s, String t);
 
 #endif // CSTRING_H

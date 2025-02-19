@@ -1,7 +1,6 @@
 #include "arena.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 Arena NewArena(u32 capacity)
 {
@@ -13,8 +12,8 @@ Arena NewArena(u32 capacity)
 
 void *Alloc(Arena *a, u32 size, u32 align, u32 count)
 {
-    u32 padding = -a->head & (align - 1);
-    u32 available = a->capacity - a->head - padding;
+    int padding = -a->head & (align - 1);
+    int available = a->capacity - a->head - padding;
     if (available < 0 || count > available / size) {
         longjmp(a->jmp, 1);
     }

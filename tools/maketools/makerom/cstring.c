@@ -110,3 +110,29 @@ void String_Advance(String *s, size_t n)
     s->data += n;
     s->len -= n;
 }
+
+// Lowercase the character, if it is an uppercase alphabetic.
+static char TryLower(char c)
+{
+    return (c >= 'A' && c <= 'Z') ? c + ('a' - 'A') : c;
+}
+
+int String_CompareIgnoreCase(String s, String t)
+{
+    size_t len = s.len < t.len ? s.len : t.len;
+    for (size_t i = 0; i < len; i++) {
+        char sc = TryLower(s.data[i]);
+        char tc = TryLower(t.data[i]);
+        if (sc != tc) {
+            return sc - tc;
+        }
+    }
+
+    if (s.len < t.len) {
+        return -1;
+    } else if (s.len > t.len) {
+        return 1;
+    } else {
+        return 0;
+    }
+}

@@ -216,6 +216,39 @@ static String ReadWholeFile(String fname)
 /*     // remaining is debug information or reserved areas */
 /* } */
 
+int SortRomFiles(const void *a, const void *b)
+{
+    const File *fileA = a;
+    const File *fileB = b;
+
+    // 1. Compare path components. All member files of a directory are sorted
+    // before any subdirectory.
+    StringPair rootPathA = String_Cut(fileA->rootRom, '/');
+    StringPair rootPathB = String_Cut(fileB->rootRom, '/');
+    int result;
+
+    while ((result = String_CompareIgnoreCase(rootPathA.head, rootPathB.head)) == 0) {
+        if (rootPathB.tail.len > 0 && rootPathA.tail.len == 0) {
+            return -1;
+        }
+        if (rootPathA.tail.len > 0 && rootPathB.tail.len == 0) {
+            return 1;
+        }
+        if (rootPathA.tail.len == 0 && rootPathB.tail.len == 0) {
+            break;
+        }
+
+        rootPathA = String_Cut(rootPathA.tail, '/');
+        rootPathB = String_Cut(rootPathB.tail, '/');
+    }
+
+    // 2. If the path components are equal, then the files should be sorted in
+    // lexicographical, case-insensitive order.
+    return result == 0
+        ? String_CompareIgnoreCase(fileA->path, fileB->path)
+        : result;
+}
+
 int main(int argc, char **argv)
 {
     ParseArgv(argc, argv);
@@ -236,6 +269,7 @@ int main(int argc, char **argv)
 
     ParseSpec(spec);
     free(spec.data);
+    qsort(gRomSpec->files, gRomSpec->numFiles, sizeof(File), SortRomFiles);
     for (size_t i = 0; i < gRomSpec->numFiles; i++) {
         printf("%s/%s\n", gRomSpec->files[i].rootRom.data, gRomSpec->files[i].path.data);
     }
@@ -263,9 +297,11 @@ void DebugPrint(char *fmt, ...)
     if (gVerbose) {
         va_list args;
         va_start(args, fmt);
+
         printf("[DEBUG] ");
         vprintf(fmt, args);
         printf("\n");
+
         va_end(args);
     }
 }

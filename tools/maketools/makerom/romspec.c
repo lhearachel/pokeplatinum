@@ -67,25 +67,10 @@ static size_t sLineNumber = 1;
         String_Advance(s, 1);                \
     }
 
-static bool IsSpace(char c)
-{
-    return c == ' '
-        || c == '\n'
-        || c == '\f'
-        || c == '\r'
-        || c == '\t'
-        || c == '\v';
-}
-
-static bool MatchesKey(String s, String key)
-{
-    return String_StartsWith(s, key) && IsSpace(s.data[key.len]);
-}
-
 static bool TakePropertyKey(String *s, String key)
 {
     DebugPrint("-- Checking for property key “%.*s”", (int)key.len, key.data, (int)key.len, s->data);
-    if (!MatchesKey(*s, key)) {
+    if (!String_MatchesWord(*s, key)) {
         return false;
     }
 
@@ -97,7 +82,7 @@ static bool TakePropertyKey(String *s, String key)
 static bool TakeSectionHeader(String *s, String key)
 {
     DebugPrint("-- Checking for section header “%.*s”", (int)key.len, key.data, (int)key.len, s->data);
-    if (!MatchesKey(*s, key)) {
+    if (!String_MatchesWord(*s, key)) {
         return false;
     }
 
@@ -182,11 +167,47 @@ static String TakeStringValue(String *s)
     return value;
 }
 
-static String CloneStringValue(String *s)
+static String ExpandString(String *s)
 {
     String value = TakeStringValue(s);
-    char *buf = new (&gArena, char, value.len + 1);
-    return String_Clone(value, buf);
+
+    size_t len = 0;
+    char *buf = new (&gArena, char, 0); // Request 0 and update later.
+    for (size_t i = 0; i < value.len; i++) {
+        if (value.data[i] == '$' && value.data[i + 1] == '(') {
+            i += 2;
+
+            // Extract the variable name.
+            int close = String_FindC(String(value.data + i, value.len - i), ')');
+            if (close < 0) {
+                Die("Line %u: Unterminated variable-substitution; did you forget a “)”?", sLineNumber);
+                return String_Z;
+            }
+            String var = String(value.data + i, close);
+
+            // Find matching variable name.
+            size_t j;
+            for (j = 0; j < VARIABLE_COUNT && gVariables[j].name.len > 0; j++) {
+                if (String_Equals(gVariables[j].name, var)) {
+                    // substitute the value of the variable into the arena buffer
+                    memcpy(buf + len, gVariables[j].value.data, gVariables[j].value.len);
+                    len += gVariables[j].value.len;
+                    i += close + 1;
+                    break;
+                }
+            }
+
+            if (j == VARIABLE_COUNT || gVariables[j].name.len == 0) {
+                // No matching variable found; die.
+                Die("Line %u: Unrecognized variable name: “%.*s”", sLineNumber, (int)var.len, var.data[i]);
+            }
+        } else {
+            buf[len++] = value.data[i];
+        }
+    }
+
+    gArena.head += len;
+    return String(buf, len);
 }
 
 static int ParseNumber(String *s)
@@ -209,11 +230,11 @@ static int ParseNumber(String *s)
 
 static bool ParseBoolean(String *s)
 {
-    if (MatchesKey(*s, String("TRUE"))) {
+    if (String_MatchesWord(*s, String("TRUE"))) {
         return true;
     }
 
-    if (MatchesKey(*s, String("FALSE"))) {
+    if (String_MatchesWord(*s, String("FALSE"))) {
         return false;
     }
 
@@ -294,19 +315,19 @@ static void ParseArm9Section(String *spec)
         String *target = NULL;
         String *targetKey = NULL;
         if (TakePropertyKey(spec, sKeyStatic)) {
-            gRomSpec->binary9.pathStatic = CloneStringValue(spec);
+            gRomSpec->binary9.pathStatic = ExpandString(spec);
             target = &gRomSpec->binary9.pathStatic;
             targetKey = &sKeyStatic;
         } else if (TakePropertyKey(spec, sKeyOverlayDefs)) {
-            gRomSpec->binary9.pathOverlayDefs = CloneStringValue(spec);
+            gRomSpec->binary9.pathOverlayDefs = ExpandString(spec);
             target = &gRomSpec->binary9.pathOverlayDefs;
             targetKey = &sKeyOverlayDefs;
         } else if (TakePropertyKey(spec, sKeyOverlayTable)) {
-            gRomSpec->binary9.pathOverlayTable = CloneStringValue(spec);
+            gRomSpec->binary9.pathOverlayTable = ExpandString(spec);
             target = &gRomSpec->binary9.pathOverlayTable;
             targetKey = &sKeyOverlayTable;
         } else if (TakePropertyKey(spec, sKeyElf) || TakePropertyKey(spec, sKeyNef)) {
-            gRomSpec->binary9.pathElf = CloneStringValue(spec); // Not important to keep, apparently
+            gRomSpec->binary9.pathElf = ExpandString(spec); // Not important to keep, apparently
             target = &gRomSpec->binary9.pathElf;
             targetKey = &sKeyElf;
         } else {
@@ -337,19 +358,19 @@ static void ParseArm7Section(String *spec)
         String *target = NULL;
         String *targetKey = NULL;
         if (TakePropertyKey(spec, sKeyStatic)) {
-            gRomSpec->binary7.pathStatic = CloneStringValue(spec);
+            gRomSpec->binary7.pathStatic = ExpandString(spec);
             target = &gRomSpec->binary7.pathStatic;
             targetKey = &sKeyStatic;
         } else if (TakePropertyKey(spec, sKeyOverlayDefs)) {
-            gRomSpec->binary7.pathOverlayDefs = CloneStringValue(spec);
+            gRomSpec->binary7.pathOverlayDefs = ExpandString(spec);
             target = &gRomSpec->binary7.pathOverlayDefs;
             targetKey = &sKeyOverlayDefs;
         } else if (TakePropertyKey(spec, sKeyOverlayTable)) {
-            gRomSpec->binary7.pathOverlayTable = CloneStringValue(spec);
+            gRomSpec->binary7.pathOverlayTable = ExpandString(spec);
             target = &gRomSpec->binary7.pathOverlayTable;
             targetKey = &sKeyOverlayTable;
         } else if (TakePropertyKey(spec, sKeyElf) || TakePropertyKey(spec, sKeyNef)) {
-            gRomSpec->binary7.pathElf = CloneStringValue(spec);
+            gRomSpec->binary7.pathElf = ExpandString(spec);
             target = &gRomSpec->binary7.pathElf;
             targetKey = &sKeyElf;
         } else {
@@ -380,7 +401,7 @@ static void ParsePropertySection(String *spec)
         String *target = NULL;
         String *targetKey = NULL;
         if (TakePropertyKey(spec, sKeyGameTitle)) {
-            gRomSpec->properties.gameTitle = CloneStringValue(spec);
+            gRomSpec->properties.gameTitle = ExpandString(spec);
             if (gRomSpec->properties.gameTitle.len > 12) {
                 DebugPrint("-- Value for “GameTitle” = “%.*s” is longer than 12 characters; truncating...",
                     (int)gRomSpec->properties.gameTitle.len,
@@ -391,7 +412,7 @@ static void ParsePropertySection(String *spec)
             target = &gRomSpec->properties.gameTitle;
             targetKey = &sKeyGameTitle;
         } else if (TakePropertyKey(spec, sKeyGameCode)) {
-            gRomSpec->properties.gameCode = CloneStringValue(spec);
+            gRomSpec->properties.gameCode = ExpandString(spec);
             if (gRomSpec->properties.gameCode.len > 4) {
                 DebugPrint("-- Value for “GameCode” = “%.*s” is longer than 4 characters; truncating...",
                     (int)gRomSpec->properties.gameCode.len,
@@ -402,7 +423,7 @@ static void ParsePropertySection(String *spec)
             target = &gRomSpec->properties.gameCode;
             targetKey = &sKeyGameCode;
         } else if (TakePropertyKey(spec, sKeyMakerCode)) {
-            gRomSpec->properties.makerCode = CloneStringValue(spec);
+            gRomSpec->properties.makerCode = ExpandString(spec);
             if (gRomSpec->properties.makerCode.len > 2) {
                 DebugPrint("-- Value for “MakerCode” = “%.*s” is longer than 2 characters; truncating...",
                     (int)gRomSpec->properties.makerCode.len,
@@ -474,6 +495,7 @@ static void ParseRomSpecSection(String *spec)
             target = &sLocalRoot;
             targetKey = &sKeyLocalRoot;
         } else if (TakePropertyKey(spec, sKeyFile)) {
+            // TODO: Expand variables in File directive
             String path = TakeStringValue(spec);
             gRomSpec->files[gRomSpec->numFiles] = ParseFilePath(&path);
             target = &gRomSpec->files[gRomSpec->numFiles].path;

@@ -32,6 +32,21 @@ bool String_StartsWith(String s, String w)
     return true;
 }
 
+bool IsSpace(char c)
+{
+    return c == ' '
+        || c == '\n'
+        || c == '\f'
+        || c == '\r'
+        || c == '\t'
+        || c == '\v';
+}
+
+bool String_MatchesWord(String s, String w)
+{
+    return String_StartsWith(s, w) && IsSpace(s.data[w.len]);
+}
+
 StringPair String_Cut(String s, char delim)
 {
     String head = s;
@@ -114,7 +129,8 @@ void String_Advance(String *s, size_t n)
 // Lowercase the character, if it is an uppercase alphabetic.
 static char TryLower(char c)
 {
-    return (c >= 'A' && c <= 'Z') ? c + ('a' - 'A') : c;
+    // Branchless version
+    return c + (('a' - 'A') * (c >= 'A' && c <= 'Z'));
 }
 
 int String_CompareIgnoreCase(String s, String t)
@@ -128,11 +144,17 @@ int String_CompareIgnoreCase(String s, String t)
         }
     }
 
-    if (s.len < t.len) {
-        return -1;
-    } else if (s.len > t.len) {
-        return 1;
-    } else {
-        return 0;
+    // S shorter than T -> return -1
+    // T shorter than S -> return 1
+    return (-1 * (s.len < t.len)) + (1 * (s.len > t.len));
+}
+
+int String_FindC(String s, char c)
+{
+    size_t i = 0;
+    while (i < s.len && s.data[i] != c) {
+        i++;
     }
+
+    return (i * (i != s.len)) + (-1 * (i == s.len));
 }

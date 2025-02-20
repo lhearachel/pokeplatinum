@@ -270,6 +270,17 @@ int main(int argc, char **argv)
     ParseSpec(spec);
     free(spec.data);
     qsort(gRomSpec->files, gRomSpec->numFiles, sizeof(File), SortRomFiles);
+    printf("Arm9:\n");
+    printf("  - main:  %.*s\n", (int)gRomSpec->binary9.pathStatic.len, gRomSpec->binary9.pathStatic.data);
+    printf("  - defs:  %.*s\n", (int)gRomSpec->binary9.pathOverlayDefs.len, gRomSpec->binary9.pathOverlayDefs.data);
+    printf("  - table: %.*s\n", (int)gRomSpec->binary9.pathOverlayTable.len, gRomSpec->binary9.pathOverlayTable.data);
+    printf("  - elf:   %.*s\n", (int)gRomSpec->binary9.pathElf.len, gRomSpec->binary9.pathElf.data);
+    printf("Arm7:\n");
+    printf("  - main:  %.*s\n", (int)gRomSpec->binary7.pathStatic.len, gRomSpec->binary7.pathStatic.data);
+    printf("  - defs:  %.*s\n", (int)gRomSpec->binary7.pathOverlayDefs.len, gRomSpec->binary7.pathOverlayDefs.data);
+    printf("  - table: %.*s\n", (int)gRomSpec->binary7.pathOverlayTable.len, gRomSpec->binary7.pathOverlayTable.data);
+    printf("  - elf:   %.*s\n", (int)gRomSpec->binary7.pathElf.len, gRomSpec->binary7.pathElf.data);
+    printf("Files:\n");
     for (size_t i = 0; i < gRomSpec->numFiles; i++) {
         printf("%s/%s\n", gRomSpec->files[i].rootRom.data, gRomSpec->files[i].path.data);
     }

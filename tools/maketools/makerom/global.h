@@ -15,6 +15,4 @@ typedef unsigned int bool;
 #define countof(a)  (sizeof(a) / sizeof(*(a)))
 #define lengthof(s) (countof(s) - 1)
 
-#define ROMSPEC_FILESYS_ENTRIES 61440
-
 #endif // GLOBAL_H

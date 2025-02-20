@@ -4,6 +4,8 @@
 #include "cstring.h"
 #include "global.h"
 
+#define ROMSPEC_FILESYS_ENTRIES 61440
+
 typedef struct {
     String pathStatic;
     String pathOverlayDefs;

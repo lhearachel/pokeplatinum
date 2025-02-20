@@ -25,8 +25,18 @@ typedef struct {
 #define String_N(s, n)         (String) { s, n }
 // clang-format on
 
+// Check if two strings A and B are equal.
 bool String_Equals(String a, String b);
+
+// Check if string S starts with a prefix W.
 bool String_StartsWith(String s, String w);
+
+// Check if character C is a whitespace character.
+bool IsSpace(char c);
+
+// Check if string S is prefixed by a word W followed by a whitespace character.
+bool String_MatchesWord(String s, String w);
+
 StringPair String_Cut(String s, char delim);
 StringPair String_CutBack(String s, char delim);
 
@@ -55,5 +65,9 @@ void String_Advance(String *s, size_t n);
 //
 // This variant ignores differences in casing.
 int String_CompareIgnoreCase(String s, String t);
+
+// Find the index of the first occurrence of C in S. Returns -1 if the character
+// is not found.
+int String_FindC(String s, char c);
 
 #endif // CSTRING_H

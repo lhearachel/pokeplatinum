@@ -199,13 +199,14 @@ static String ExpandString(String *s)
 
             if (j == VARIABLE_COUNT || gVariables[j].name.len == 0) {
                 // No matching variable found; die.
-                Die("Line %u: Unrecognized variable name: “%.*s”", sLineNumber, (int)var.len, var.data[i]);
+                Die("Line %u: Unrecognized variable name: “%.*s”", sLineNumber, (int)var.len, var.data);
             }
         } else {
             buf[len++] = value.data[i];
         }
     }
 
+    buf[len++] = '\0';
     gArena.head += len;
     return String(buf, len);
 }

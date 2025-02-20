@@ -84,15 +84,6 @@ static void ParseVariableDef(String s)
     DieUsage("Too many variable definitions");
 }
 
-static void LoadHeaderTemplate(char *path)
-{
-    FILE *f = fopen(path, "rb");
-    if (!f) {
-        DieUsage("Could not open header template file “%s”", path);
-        return;
-    }
-}
-
 static void ParseArgv(int argc, char **argv)
 {
     argc--, argv++;
@@ -249,6 +240,36 @@ int SortRomFiles(const void *a, const void *b)
         : result;
 }
 
+static size_t LoadWholeFile(char *path, unsigned char *target, size_t fsize)
+{
+    FILE *f = fopen(path, "rb");
+    if (!f) {
+        Die("Could not open file “%s”", path);
+        return 0;
+    }
+
+    if (fsize == 0) {
+        fseek(f, 0, SEEK_END);
+        fsize = ftell(f);
+        rewind(f);
+    }
+
+    fread(target, 1, fsize, f);
+    fclose(f);
+    return fsize;
+}
+
+static size_t PadToNext512(unsigned char *target, size_t cursor)
+{
+    size_t next = cursor;
+    next += (0x10 - (next & 0x00F));
+    next += (0x100 - (next & 0x0F0));
+    next += (0x100 * ((next & 0x200) != 0x200));
+
+    memset(target + cursor, 0xFF, next - cursor);
+    return next - cursor;
+}
+
 int main(int argc, char **argv)
 {
     ParseArgv(argc, argv);
@@ -270,22 +291,20 @@ int main(int argc, char **argv)
     ParseSpec(spec);
     free(spec.data);
     qsort(gRomSpec->files, gRomSpec->numFiles, sizeof(File), SortRomFiles);
-    printf("Arm9:\n");
-    printf("  - main:  %.*s\n", (int)gRomSpec->binary9.pathStatic.len, gRomSpec->binary9.pathStatic.data);
-    printf("  - defs:  %.*s\n", (int)gRomSpec->binary9.pathOverlayDefs.len, gRomSpec->binary9.pathOverlayDefs.data);
-    printf("  - table: %.*s\n", (int)gRomSpec->binary9.pathOverlayTable.len, gRomSpec->binary9.pathOverlayTable.data);
-    printf("  - elf:   %.*s\n", (int)gRomSpec->binary9.pathElf.len, gRomSpec->binary9.pathElf.data);
-    printf("Arm7:\n");
-    printf("  - main:  %.*s\n", (int)gRomSpec->binary7.pathStatic.len, gRomSpec->binary7.pathStatic.data);
-    printf("  - defs:  %.*s\n", (int)gRomSpec->binary7.pathOverlayDefs.len, gRomSpec->binary7.pathOverlayDefs.data);
-    printf("  - table: %.*s\n", (int)gRomSpec->binary7.pathOverlayTable.len, gRomSpec->binary7.pathOverlayTable.data);
-    printf("  - elf:   %.*s\n", (int)gRomSpec->binary7.pathElf.len, gRomSpec->binary7.pathElf.data);
-    printf("Files:\n");
-    for (size_t i = 0; i < gRomSpec->numFiles; i++) {
-        printf("%s/%s\n", gRomSpec->files[i].rootRom.data, gRomSpec->files[i].path.data);
-    }
-    /* InitHeader(); */
 
+    // Base ROM size (1Mb) is 0x00020000; each successor doubles the capacity.
+    size_t romSize = 0x00020000 << gRomSpec->properties.romSize;
+    unsigned char *rom = calloc(romSize, 1);
+
+    size_t cursor = LoadWholeFile(sHeaderTemplatePath, rom, ROM_HEADER_SIZE);
+    cursor += LoadWholeFile(gRomSpec->binary9.pathStatic.data, rom + cursor, 0);
+    cursor += PadToNext512(rom, cursor);
+
+    FILE *fout = fopen("rom.nds", "wb");
+    fwrite(rom, 1, romSize, fout);
+    fclose(fout);
+
+    free(rom);
     free(gRomSpec);
     exit(EXIT_SUCCESS);
 }

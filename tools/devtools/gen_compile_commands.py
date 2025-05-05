@@ -251,9 +251,10 @@ datagen_cpp_commands = [
             f"-I{homedir}/subprojects/narc/lib/include",  # NARC packing
             f"-I{homedir}/subprojects/rapidjson-1.1.0/include",  # JSON parser
             f"-I{homedir}/tools/datagen",  # base header file
+            f"-I{homedir}/tools/datagen/include",  # base header file
             f"-I{homedir}/include",  # source includes
             f"-I{builddir}",  # metang-generated headers (constants)
-            "-std=c++17",
+            "-std=c++20",
             "-Wno-deprecated-declarations",
             "-o",
             file.with_suffix(".o"),

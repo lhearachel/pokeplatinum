@@ -107,11 +107,13 @@ metang_generators = {
 }
 
 c_consts_generators = []
+cpp_consts_generators = []
 py_consts_generators = []
 
 foreach gen_key : metang_generators.keys()
     gen_h = gen_key + '.h'
     gen_py = gen_key + '.py'
+    gen_hpp = gen_key + '.hpp'
     gen_file = files(gen_key + '.txt')
     gen_args = metang_generators.get(gen_key)
     gen_extra_args = gen_args.get('extra', [])
@@ -140,6 +142,19 @@ foreach gen_key : metang_generators.keys()
             '@INPUT@',
         ]
     )
+
+    cpp_consts_generators += custom_target(gen_hpp,
+        output: gen_hpp,
+        input: gen_file,
+        command: [
+            metang_exe,
+            '--tag', gen_args['tag'],
+            '--guard', 'POKEPLATINUM_GENERATED',
+            '--output', '@OUTPUT@',
+            gen_extra_args,
+            '@INPUT@',
+        ]
+    )
 endforeach
 
 npc_trades_txt = files('npc_trades.txt')
@@ -149,3 +164,10 @@ trainers_txt = files('trainers.txt')
 
 py_consts_env = environment()
 py_consts_env.append('PYTHONPATH', meson.project_build_root())
+
+alias_target(
+    'generated',
+    c_consts_generators,
+    cpp_consts_generators,
+    py_consts_generators
+)

@@ -144,3 +144,5 @@ trainers_txt = files('trainers.txt')
 
 py_consts_env = environment()
 py_consts_env.append('PYTHONPATH', meson.project_build_root())
+
+tms_hms_txt = files('tms_hms.txt') # This one is NOT for metang; see the file for details

@@ -42,5 +42,13 @@ pl_item_data_narc = custom_target('pl_item_data.narc',
     depends: [ c_consts_generators, ],
 )
 
+tm_hm_moves_h = custom_target('tm_hm_moves.h',
+    output: 'tm_hm_moves.h',
+    input: tms_hms_txt,
+    command: [make_tm_moves_table_py, '--output', '@OUTPUT@', '--schema', '@INPUT@'],
+)
+
 nitrofs_files += nuts_data_narc
 nitrofs_files += pl_item_data_narc
+nitrofs_files += tm_hm_moves_h
+data_headers += tm_hm_moves_h

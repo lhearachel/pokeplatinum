@@ -175,6 +175,9 @@ endforeach
 #    latter maintains that compilation must reoccur when source files change.
 datagen_species_out = custom_target('datagen_species_out',
     output: [
+        'tutorable_moves.h',
+        'species_learnsets_by_tutor.h',
+        'species_footprints.h',
         'pl_personal.narc',
         'evo.narc',
         'wotbl.narc',
@@ -182,9 +185,6 @@ datagen_species_out = custom_target('datagen_species_out',
         'height.narc',
         'pl_poke_data.narc',
         'pms.narc',
-        'tutorable_moves.h',
-        'species_learnsets_by_tutor.h',
-        'species_footprints.h',
     ],
     command: [
         datagen_species_exe,
@@ -198,9 +198,9 @@ datagen_species_out = custom_target('datagen_species_out',
         species_data_files,
     ],
 )
-tutorable_moves_h = datagen_species_out[6]
-species_learnsets_by_tutor_h = datagen_species_out[7]
-species_footprints_h = datagen_species_out[8]
+data_headers += datagen_species_out[0]
+data_headers += datagen_species_out[1]
+data_headers += datagen_species_out[2]
 
 
 # OLD NARCs

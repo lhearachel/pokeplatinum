@@ -605,7 +605,7 @@ static const SpriteTemplate sHealthbarTemplate_NoPlayerMon = {
     .vramTransfer = FALSE,
 };
 
-#include "res/graphics/battle/healthbar_parts.4bpp.h"
+#include "res/graphics/battle/healthbox/healthbar_parts.4bpp.h"
 
 void Healthbar_LoadResources(SpriteSystem *spriteSys, SpriteManager *spriteMan, NARC *narc, PaletteData *palette, enum HealthbarType healthbarType)
 {

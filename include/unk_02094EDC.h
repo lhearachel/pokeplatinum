@@ -20,7 +20,7 @@ void sub_02095338(UnkStruct_02095C48 *param0);
 void sub_02095380(const UnkStruct_ov6_02248BE8 *param0, Pokemon *param1, enum HeapID heapID);
 PokemonSprite *sub_02095484(PokemonSpriteManager *param0, int param1, Pokemon *param2, int param3, PokemonSpriteData *pokemonSpriteData, enum HeapID heapID, int param6, int param7, int param8);
 void sub_020954F0(UnkStruct_02095C48 *param0, enum HeapID heapID, int param2, enum PokemonContestType contestType, enum PokemonContestRank contestRank);
-s8 sub_02095734(enum ContestEffects contestEffect);
+s8 sub_02095734(enum ContestEffect contestEffect);
 void LoadTwoLineContestEffectMessages(int param0, u32 *lineOneEffectMessageID, u32 *lineTwoEffectMessageID);
 u32 sub_0209577C(int param0);
 void sub_02095790(int param0, int param1, u32 *param2, u32 *param3);

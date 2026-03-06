@@ -771,7 +771,7 @@ void sub_020954F0(UnkStruct_02095C48 *param0, enum HeapID heapID, int param2, en
     Heap_Free(v6);
 }
 
-s8 sub_02095734(enum ContestEffects contestEffect)
+s8 sub_02095734(enum ContestEffect contestEffect)
 {
     GF_ASSERT(contestEffect < (NELEMS(Unk_020F568C)));
     return Unk_020F568C[contestEffect].unk_04;

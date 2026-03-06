@@ -1542,7 +1542,7 @@ static void DrawEmptyAppealPts(BattleParty *battleParty)
 
 static void DrawMoveContestStats(BattleParty *battleParty, enum BattlePartyScreen screen)
 {
-    enum ContestEffects contestEffect;
+    enum ContestEffect contestEffect;
     u16 selectedMove;
     s8 appealPts;
 

@@ -10,7 +10,7 @@
 #include <unistd.h>
 
 #include "dataproc.h"
-#include "enum.h"
+#include "libenum.h"
 #include "nitroarc.h"
 
 #define MAX_LOADED_ENUMS 128
@@ -210,7 +210,7 @@ static void load_header_template(header_template_t *h, FILE *depfile) {
 }
 
 static void unload_enums(void) {
-    for (size_t i = 0; i < num_loaded_enums; i++) enum_free(&loaded_enums[i]);
+    for (size_t i = 0; i < num_loaded_enums; i++) free(loaded_enums[i].members);
 }
 
 static void finish_outputs(void) {
@@ -463,6 +463,17 @@ static const char *include_paths[MAX_INCLUDES] = {
     REPO_BUILD,
 };
 
+static int enumcmp_byident(const void *key, const void *elem) {
+    const char   *k = key;
+    const enum_t *e = elem;
+
+    if (k == NULL && e->ident == NULL) return 0;
+    else if (k == NULL) return 1;
+    else if (e->ident == NULL) return -1;
+
+    return strcmp(k, e->ident);
+}
+
 static enum_t dp_include(
     const char *from_file,
     const char *with_prefix,
@@ -471,6 +482,9 @@ static enum_t dp_include(
     FILE       *depfile
 ) {
     assert(from_file && "included filename must not be NULL");
+    if (!from_defs) {
+        assert(strncmp("enum", for_type, sizeof("enum") - 1) == 0 && "'for_type' value must be prefixed with 'enum '");
+    }
 
     char *found_file = NULL;
     for (int i = 0; i < MAX_INCLUDES && include_paths[i]; i++) {
@@ -484,16 +498,23 @@ static enum_t dp_include(
         exit(EXIT_FAILURE);
     }
 
-    char  *buf    = fload(found_file);
-    enum_t result = from_defs
-        ? enum_parse_def(buf, with_prefix, ENUM_F_SORT | ENUM_F_CONVERT)
-        : enum_parse_one(buf, ENUM_F_SORT | ENUM_F_CONVERT, NULL);
+    char   *buf      = fload(found_file);
+    size_t  n_parsed = 0;
+    enum_t  result   = { 0 };
+    enum_t *parsed   = enum_map_all(buf, NULL, LIBENUM_F_SORT | LIBENUM_F_EVAL, with_prefix, &n_parsed);
 
-    dp_register((lookup_t *)result.syms, result.len, for_type);
+    if (from_defs) result = parsed[0];
+    else if (strncmp("enum", for_type, sizeof("enum") - 1) == 0) {
+        enum_t *found = bsearch(&for_type[sizeof("enum")], parsed, n_parsed, sizeof(*found), enumcmp_byident);
+        if (found) result = *found;
+    }
+
+    dp_register((lookup_t *)result.members, result.size, for_type);
     fputs(found_file, depfile);
     fputc(' ',        depfile);
 
-    free(buf);
+    result.pool = buf;
+    free(parsed);
     free(found_file);
     return result;
 }

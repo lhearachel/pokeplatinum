@@ -17,3 +17,20 @@ libenum_dep = declare_dependency(
         native: true,
     ),
 )
+
+enumproc_exe = executable(
+    'enumproc',
+    sources: files('enumproc.c'),
+    c_args: [
+        '-std=gnu17',
+        '-O3',
+        '-Wall',
+        '-Wextra',
+        '-Wpedantic',
+        '-Wconversion',
+        '-Wno-sign-conversion',
+        '-Werror',
+    ],
+    dependencies: libenum_dep,
+    native: true,
+)

@@ -80,7 +80,12 @@ int main(int argc, char *argv[]) {
 
         if (strncmp(p, "enum", 4) == 0) {
             enum_t parsed = enum_map_one(p, &endptr, LIBENUM_F_EVAL, NULL, NULL);
-            if (*endptr != ';') goto put_line; // probably not a C enum
+            if (parsed.errc != 0) {
+                // TODO: this should report line-location like GCC would
+                fprintf(stderr, "error parsing enum content @ %zd: %s\n",
+                        endptr - content, enum_errs(parsed.errc));
+                exit(EXIT_FAILURE);
+            }
 
             for (size_t i = 0; i < parsed.size; i++) {
                 member_t *member = &parsed.members[i];
@@ -93,7 +98,6 @@ int main(int argc, char *argv[]) {
             p = *p == '\n' ? p + 1 : p;
         }
         else {
-        put_line:
             if (!*p) break;
             do { fputc(*p, stdout); p++; } while (*p && *p != '\n');
         }

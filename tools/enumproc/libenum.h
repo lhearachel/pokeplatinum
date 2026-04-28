@@ -7,6 +7,18 @@
 
 #define LIBENUM_F_EVAL (1 << 0) // Evaluate integer constant expressions
 #define LIBENUM_F_SORT (1 << 1) // Sort the final outputs by symbol-names
+#define LIBENUM_F_UNIQ (1 << 2) // Ensure that all identifiers are unique
+
+enum {
+    LIBENUM_R_OK = 0,
+    LIBENUM_R_ALLOC,
+    LIBENUM_R_DECL,
+    LIBENUM_R_EMPTY,
+    LIBENUM_R_TOKEN,
+    LIBENUM_R_NOMEMB,
+    LIBENUM_R_MEMB_EXISTS,
+    LIBENUM_R_ENUM_EXISTS,
+};
 
 typedef struct member_t member_t;
 struct member_t {
@@ -24,6 +36,7 @@ struct enum_t {
     member_t *members;
     size_t    size;
     unsigned  flags;
+    unsigned  errc;
 };
 
 // Map a single C-style `enum` from the start of a modifiable input string.
@@ -86,6 +99,13 @@ enum_t enum_map_cpp(char *str, char **endptr, unsigned flags, const char *filter
 // When `flags` is given with `LIBENUM_F_SORT`, all other output mappings will
 // be sorted lexicographically according to their identifiers. The input `flags`
 // are otherwise passed to the individual parsing functions as-is.
+//
+// When this routine returns `NULL`, if `o_size != NULL`, `*o_size` will be set
+// to a value describing the error.
 enum_t* enum_map_all(char *str, char **endptr, unsigned flags, const char *filter, size_t *o_size);
+
+// Return a human-readable string describing a result-code. This string is
+// statically allocated and does not need to be `free`'d.
+const char* enum_errs(unsigned errc);
 
 #endif // LIBENUM_H

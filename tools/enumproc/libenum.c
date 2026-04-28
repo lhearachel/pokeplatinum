@@ -10,27 +10,32 @@ static bool isws(char c) {
     return c == ' ' || c == '\t' || c == '\r' || c == '\n';
 }
 
-static char* skip(char *str) {
+static char* skip(const char *str) {
     assert(str);
+
     for (;;) {
         while (isws(*str)) str++;
 
         if (str[0] == '/' && str[1] == '/') {
             str += 2;
-            while (*str && *str != '\r' && *str != '\n') str++;
+            while (str[0] && str[0] != '\r' && str[0] != '\n') str++;
             continue;
         }
 
         if (str[0] == '/' && str[1] == '*') {
+            const char *start = str;
+
             str += 2;
-            while (*str && *str != '*' && str[1] && str[1] != '/') str++;
+            while (str[0] && str[1] && !(str[0] == '*' && str[1] == '/')) str++;
+            if    (!str[0] || !str[1]) { str = start; break; } // unterminated
             str += 2;
             continue;
         }
 
         break;
     }
-    return str;
+
+    return (char *)str;
 }
 
 static inline bool is_alpha(char c) {
@@ -47,8 +52,8 @@ static inline bool is_ident(char c) {
 
 /* ========================== EXPRESSION EVALUATOR ========================== */
 
-typedef struct stack stack_t;
-struct stack {
+typedef struct opstack opstack_t;
+struct opstack {
     long   nums[16];
     size_t n_nums;
 
@@ -59,7 +64,7 @@ struct stack {
     size_t n_unas;
 };
 
-#define precedes(o1, o2)  opt_data[o2].prec > opt_data[o1].prec
+#define precedes(o1, o2)  opt_data[o2].prec < opt_data[o1].prec
 #define congruent(o1, o2) opt_data[o2].prec == opt_data[o1].prec
 #define is_left(opt)      opt_data[opt].left
 
@@ -94,7 +99,7 @@ struct stack {
         case OP_AND: result = p_args[0] && p_args[1]; break; \
         case OP_ORR: result = p_args[0] || p_args[1]; break; \
                                                              \
-        default: abort();                                    \
+        default: assert(0 && "illegal op-type");             \
         }                                                    \
                                                              \
         push(stk, nums, result);                             \
@@ -111,7 +116,7 @@ struct stack {
         case OP_NOT: res = !res;                 break;      \
         case OP_BNT: res = ~res;                 break;      \
                                                              \
-        default: abort();                                    \
+        default: assert(0 && "illegal op-type");             \
         }                                                    \
                                                              \
         push(stk, nums, res);                                \
@@ -174,13 +179,13 @@ long eval(char *expr, char **endptr, char *terminators, enum_t *scope) {
         [OP_ORR] = { .prec = 12, .left = true  },
     };
 
-    char   *p   = expr;
-    char   *e   = NULL;
-    bool    u   = true;
-    bool    n   = true;
-    long    m   = 1;
-    stack_t stk = { 0 };
-    int     o1, o2;
+    char *p = expr, *e = NULL;
+    bool  u = true,  n = true;
+    long  m = 1;
+    int   o1, o2;
+
+    opstack_t stk = { 0 };
+    if (!terminators) terminators = "";
 
     while (*p) {
         bool done = false;
@@ -302,11 +307,12 @@ long eval(char *expr, char **endptr, char *terminators, enum_t *scope) {
 
         case '(': push(stk, opts, OP_LPA); p++; u = true; n = true; break;
         case ')':
+            o2 = -1;
             while (stk.n_opts > 0 && (o2 = pop(stk, opts)) != OP_LPA) {
                 evalbinary(o2);
             }
 
-            assert(o2 == OP_LPA && "mismatched parentheses");
+            if (o2 != OP_LPA) goto early_exit;
             long v = pop(stk, nums) * m;
             push(stk, nums, v);
 
@@ -371,7 +377,7 @@ static int enumcmp(const void *lhs, const void *rhs) {
         if (result.size >= cap) {                                        \
             size_t    new = 2 * cap;                                     \
             member_t *tmp = realloc(result.members, new * sizeof(*tmp)); \
-            if (tmp == NULL) goto cleanup_err;                           \
+            if (tmp == NULL) return_error(LIBENUM_R_ALLOC);              \
             cap            = new;                                        \
             result.members = tmp;                                        \
         }                                                                \
@@ -379,12 +385,12 @@ static int enumcmp(const void *lhs, const void *rhs) {
         if (scope && scope->size >= s_cap) {                             \
             size_t    new = 2 * s_cap;                                   \
             member_t *tmp = realloc(scope->members, new * sizeof(*tmp)); \
-            if (tmp == NULL) goto cleanup_err;                           \
+            if (tmp == NULL) return_error(LIBENUM_R_ALLOC);              \
             s_cap          = new;                                        \
             scope->members = tmp;                                        \
         }                                                                \
                                                                          \
-        if (!is_alpha(*p) && *p != '_') goto cleanup_err;                \
+        if (!is_alpha(*p) && *p != '_') return_error(LIBENUM_R_NOMEMB);  \
         curr         = &result.members[result.size];                     \
         curr->symbol = p;                                                \
         do { p++; } while (is_ident(*p));                                \
@@ -393,12 +399,21 @@ static int enumcmp(const void *lhs, const void *rhs) {
         p = skip(p);                                                     \
     } while (0)
 
-#define close_member()                                    \
-    do {                                                  \
-        if (scope) scope->members[scope->size++] = *curr; \
-        result.size++;                                    \
-        *e = '\0';                                        \
-        p = skip(p);                                      \
+#define close_member()                                                     \
+    do {                                                                   \
+        *e = '\0';                                                         \
+        if (flags & LIBENUM_F_UNIQ) {                                      \
+            enum_t *check = scope ? scope : &result;                       \
+            for (size_t i = 0; i < check->size; i++) {                     \
+                if (strcmp(check->members[i].symbol, curr->symbol) == 0) { \
+                    p = curr->symbol;                                      \
+                    return_error(LIBENUM_R_MEMB_EXISTS);                   \
+                }                                                          \
+            }                                                              \
+        }                                                                  \
+        if (scope) scope->members[scope->size++] = *curr;                  \
+        result.size++;                                                     \
+        p = skip(p);                                                       \
     } while (0)
 
 #define nextpow2_64(v) \
@@ -424,6 +439,8 @@ static void merge(enum_t *dst, const enum_t *src, size_t *p_cap) {
     }
 }
 
+#define return_error(code) do { result.errc = code; goto cleanup_err; } while (0)
+
 enum_t enum_map_one(char *str, char **endptr, unsigned flags, const char *filter, enum_t *scope) {
     assert(str);
 
@@ -441,8 +458,11 @@ enum_t enum_map_one(char *str, char **endptr, unsigned flags, const char *filter
     size_t  s_filter = filter ? strlen(filter) : 0;
     while (*p && state < STATE_DONE) {
         if (state == STATE_DECL) {
-            if (strncmp(p, "enum", sizeof("enum") - 1) != 0) goto cleanup_err;
-            if ((p += 4, !isws(*p) && *p != '{'))            goto cleanup_err;
+            if (strncmp(p, "enum", sizeof("enum") - 1) != 0
+                || ((p += 4, !isws(*p) && *p != '{')))
+            {
+                return_error(LIBENUM_R_DECL);
+            }
 
             p = skip(p);
             if (is_alpha(*p) || *p == '_') { // enum has an identifier
@@ -453,7 +473,7 @@ enum_t enum_map_one(char *str, char **endptr, unsigned flags, const char *filter
             char *e = p;
             p       = skip(p);
 
-            if (*p != '{') goto cleanup_err;
+            if (*p != '{') return_error(LIBENUM_R_DECL);
             *e    = '\0';
             p     = skip(p + 1);
             state = STATE_READ;
@@ -463,7 +483,7 @@ enum_t enum_map_one(char *str, char **endptr, unsigned flags, const char *filter
         }
 
         if (*p == '}' || *p == ';') {
-            if (result.size == 0) goto cleanup_err;
+            if (result.size == 0) return_error(LIBENUM_R_EMPTY);
 
             state = STATE_DONE;
             p     = skip(p + 1);
@@ -483,6 +503,8 @@ enum_t enum_map_one(char *str, char **endptr, unsigned flags, const char *filter
             if (flags & LIBENUM_F_EVAL) {
                 curr->value = eval(skip(p + 1), &p, ",}", p_scope);
                 next        = curr->value + 1;
+
+                if (*p != '}' && *p != ',') return_error(LIBENUM_R_TOKEN);
             } else {
                 p          = skip(p + 1);
                 curr->expr = p;
@@ -493,8 +515,7 @@ enum_t enum_map_one(char *str, char **endptr, unsigned flags, const char *filter
             break;
         }
 
-        default:
-            goto cleanup_err;
+        default: return_error(LIBENUM_R_TOKEN);
         }
 
         p++;
@@ -580,6 +601,9 @@ cleanup_err:
     return result;
 }
 
+#undef return_error
+#define return_error(code) do { if (o_size) *o_size = code; goto cleanup_err; } while (0)
+
 enum_t* enum_map_all(char *str, char **endptr, unsigned flags, const char *filter, size_t *o_size) {
     assert(str);
 
@@ -608,12 +632,19 @@ enum_t* enum_map_all(char *str, char **endptr, unsigned flags, const char *filte
             continue;
         }
 
-        if (!one.members)  goto cleanup_err;
+        if (one.errc != LIBENUM_R_OK) return_error(one.errc);
         if (one.size == 0) continue;
+        if (one.ident[0] != '\0' && (flags & LIBENUM_F_UNIQ)) {
+            for (size_t i = 0; i < size; i++) {
+                if (strcmp(result[i].ident, one.ident) == 0) {
+                    return_error(LIBENUM_R_ENUM_EXISTS);
+                }
+            }
+        }
 
         while (scope.size + one.size >= s_cap) {
             member_t *tmp = realloc(scope.members, 2 * s_cap * sizeof(*tmp));
-            if (tmp == NULL) goto cleanup_err;
+            if (tmp == NULL) return_error(LIBENUM_R_ALLOC);
             s_cap        *= 2;
             scope.members = tmp;
         }
@@ -624,7 +655,7 @@ enum_t* enum_map_all(char *str, char **endptr, unsigned flags, const char *filte
 
         if (size >= r_cap) {
             enum_t *tmp = realloc(result, 2 * r_cap * sizeof(*tmp));
-            if (tmp == NULL) goto cleanup_err;
+            if (tmp == NULL) return_error(LIBENUM_R_ALLOC);
             r_cap *= 2;
             result = tmp;
         }
@@ -676,4 +707,19 @@ cleanup_err:
     for (size_t i = 0; i < size; i++) free(result[i].members);
     free(result);
     return NULL;
+}
+
+const char* enum_errs(unsigned errc) {
+    switch (errc) {
+    case LIBENUM_R_OK:          return "(ok)";
+    case LIBENUM_R_ALLOC:       return "allocation failure";
+    case LIBENUM_R_DECL:        return "invalid C enum declaration";
+    case LIBENUM_R_EMPTY:       return "resulting enum has no members";
+    case LIBENUM_R_TOKEN:       return "unexpected token";
+    case LIBENUM_R_NOMEMB:      return "expected a member-definition";
+    case LIBENUM_R_MEMB_EXISTS: return "member identifier re-defined";
+    case LIBENUM_R_ENUM_EXISTS: return "enum identifier re-defined";
+
+    default: return "unknown result-code";
+    }
 }

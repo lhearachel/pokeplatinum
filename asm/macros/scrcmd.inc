@@ -47,7 +47,7 @@
 #include "constants/items.h"
 #include "constants/map_object.h"
 #include "constants/moves.h"
-#include "constants/overworld_weather.h"
+#include "constants/fieldmap.h"
 #include "constants/pokemon.h"
 #include "constants/records_mixed_rng.h"
 #include "constants/regi_ruins.h"

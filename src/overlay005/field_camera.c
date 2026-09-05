@@ -2,6 +2,8 @@
 
 #include <nitro.h>
 
+#include "constants/fieldmap.h"
+
 #include "field/field_system.h"
 
 #include "camera.h"
@@ -11,7 +13,7 @@
 #define FIELD_CAMERA_DELAY        6
 #define FIELD_CAMERA_HISTORY_SIZE (FIELD_CAMERA_DELAY + 1)
 
-typedef struct {
+typedef struct CameraSettings {
     fx32 distance;
     CameraAngle cameraAngle;
     u8 projection;

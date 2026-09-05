@@ -6,7 +6,7 @@
 #include "constants/field/map_load.h"
 #include "constants/field_base_tiles.h"
 #include "constants/heap.h"
-#include "constants/overworld_weather.h"
+#include "constants/fieldmap.h"
 
 #include "struct_defs/map_load_mode.h"
 #include "struct_defs/player_data.h"

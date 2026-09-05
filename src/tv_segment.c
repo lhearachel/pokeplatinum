@@ -4,7 +4,7 @@
 
 #include "constants/flavor.h"
 #include "constants/heap.h"
-#include "constants/overworld_weather.h"
+#include "constants/fieldmap.h"
 #include "constants/tv_broadcast.h"
 #include "generated/first_arrival_to_zones.h"
 #include "generated/map_headers.h"

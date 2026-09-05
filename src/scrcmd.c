@@ -12,7 +12,7 @@
 #include "constants/field/window.h"
 #include "constants/heap.h"
 #include "constants/items.h"
-#include "constants/overworld_weather.h"
+#include "constants/fieldmap.h"
 #include "constants/scrcmd.h"
 #include "constants/species.h"
 #include "constants/string.h"

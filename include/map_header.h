@@ -1,9 +1,8 @@
 #ifndef POKEPLATINUM_MAP_HEADER_H
 #define POKEPLATINUM_MAP_HEADER_H
 
-#include "generated/battle_backgrounds.h"
+#include "constants/fieldmap.h"
 #include "generated/evolution_methods.h"
-#include "generated/map_headers.h"
 
 #define ENCOUNTERS_NONE 0xFFFF
 

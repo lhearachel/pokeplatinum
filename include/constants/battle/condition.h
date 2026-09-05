@@ -1,7 +1,7 @@
 #ifndef POKEPLATINUM_CONSTANTS_BATTLE_CONDITION_H
 #define POKEPLATINUM_CONSTANTS_BATTLE_CONDITION_H
 
-#include "constants/overworld_weather.h"
+#include "constants/fieldmap.h"
 
 #define MON_CONDITION_NONE            0
 #define MON_CONDITION_SLEEP_0         (1 << 0)

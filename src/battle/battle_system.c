@@ -5,12 +5,12 @@
 
 #include "constants/battle.h"
 #include "constants/battle/battle_script.h"
+#include "constants/fieldmap.h"
 #include "constants/game_options.h"
 #include "constants/heap.h"
 #include "constants/items.h"
 #include "constants/rtc.h"
 #include "generated/abilities.h"
-#include "generated/battle_backgrounds.h"
 #include "generated/species.h"
 #include "generated/trainer_message_types.h"
 #include "generated/trainer_score_events.h"

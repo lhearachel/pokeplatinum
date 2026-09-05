@@ -3,7 +3,7 @@
 
 #include <nitro/fx/fx.h>
 
-#include "constants/camera_types.h"
+#include "constants/fieldmap.h"
 
 #include "field/field_system_decl.h"
 

@@ -3,7 +3,7 @@
 #include <nitro.h>
 #include <string.h>
 
-#include "constants/overworld_weather.h"
+#include "constants/fieldmap.h"
 
 #include "field/field_system.h"
 

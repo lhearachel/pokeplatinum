@@ -1,6 +1,6 @@
 #include "map_tile_behavior.h"
 
-#include "constants/field/map_tile_behaviors.h"
+#include "constants/fieldmap.h"
 
 // clang-format off
 static const u8 sTileBehaviorFlags[] = {

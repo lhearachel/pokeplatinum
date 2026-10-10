@@ -2,8 +2,8 @@
 #define POKEPLATINUM_FIELD_BATTLE_DATA_TRANSFER_H
 
 #include "constants/battle.h"
+#include "constants/fieldmap.h"
 #include "generated/evolution_methods.h"
-#include "generated/map_headers.h"
 
 #include "struct_defs/chatot_cry.h"
 #include "struct_defs/trainer.h"

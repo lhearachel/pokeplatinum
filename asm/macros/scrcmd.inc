@@ -10,7 +10,7 @@
 #include "generated/items.h"
 #include "generated/journal_location_events.h"
 #include "generated/journal_online_events.h"
-#include "generated/map_headers.h"
+#include "constants/fieldmap.h"
 #include "generated/mart_decor_id.h"
 #include "generated/mart_frontier_id.h"
 #include "generated/mart_seal_id.h"

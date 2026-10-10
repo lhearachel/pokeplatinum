@@ -13,6 +13,7 @@ help() {
     echo "  -d | --out-dir      directory for output files (default: current directory)"
     echo "  -M | --depfile      output a compiler-generated depfile for the source"
     echo "  -P | --parent-dir   use the parent directory name of each input script to avoid name collisions"
+    echo "  -c | --object       assemble a single input to this object file and stop (no binary extraction)"
 }
 
 INCLUDE_ARGS=()
@@ -23,6 +24,7 @@ LD="arm-none-eabi-ld"
 OUTDIR="."
 MD=""
 USE_PARENT_DIR=0
+OBJECT=""
 
 while [[ $# -gt 0 ]] ; do
     case $1 in 
@@ -64,6 +66,11 @@ while [[ $# -gt 0 ]] ; do
             USE_PARENT_DIR=1
             shift
             ;;
+        -c|--object)
+            OBJECT="$2"
+            shift
+            shift
+            ;;
         *)
             SCRIPT_FILES+=("$1")
             shift
@@ -72,6 +79,7 @@ while [[ $# -gt 0 ]] ; do
 done
 
 if [[ -z ${ENUMPROC:-} ]]; then echo "error: enumproc not specified!"; exit 1; fi
+if [[ -n $OBJECT && ${#SCRIPT_FILES[@]} -ne 1 ]]; then echo "error: --object requires exactly one input file!"; exit 1; fi
 
 for script_file in "${SCRIPT_FILES[@]}" ; do
     script_fname=${script_file##*/}
@@ -83,14 +91,17 @@ for script_file in "${SCRIPT_FILES[@]}" ; do
     fi
 
     # Target output files
-    script_obj="$OUTDIR/$script_noext.o"
+    script_obj="${OBJECT:-$OUTDIR/$script_noext.o}"
     script_bin="$OUTDIR/$script_noext"
 
     # Convert + clean-up
     $AS $MD -E -x assembler-with-cpp "${INCLUDE_ARGS[@]}" "$script_file" \
         | "$ENUMPROC" \
         | $AS -x assembler-with-cpp -o "$script_obj" -c -
-    $OBJCOPY -O binary --file-alignment 4 "$script_obj" "$script_bin"
-    $LD "$script_obj" -o "$script_obj.dummy"
-    rm "$script_obj" "$script_obj.dummy"
+
+    if [[ -z $OBJECT ]]; then
+        $OBJCOPY -O binary --file-alignment 4 "$script_obj" "$script_bin"
+        $LD "$script_obj" -o "$script_obj.dummy"
+        rm "$script_obj" "$script_obj.dummy"
+    fi
 done
